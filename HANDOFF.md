@@ -1,4 +1,4 @@
-# LIGO CRM プロジェクト — 引き継ぎドキュメント
+# LIPON プロジェクト — 引き継ぎドキュメント
 
 > **このファイルは yuujin さん（および yuujin さんのClaude Code）が前任者から引き継ぐためのものです。**
 > Claude Codeで本フォルダを開いたら、**最初にこのファイルを読んでください。**
@@ -103,7 +103,7 @@ RecruitmentStatus（採用状態） ─ id, customer_id, status(A/B/C/D/E), upda
 - ホーム / 顧客 / 接点 / ヨミ管理 / マイ
 - 顧客詳細に **採用ステータスバー** ＋履歴タイムライン
 
-### 3. `input.html` — 📲 入力専用「LIGO Tap」（スマホ）
+### 3. `input.html` — 📲 入力専用「LIPON Tap」（スマホ）
 - 4タップで終わる接点記録フロー
 - 音声入力ファースト
 - ホームから採用ステータス更新も可能（**前回更新日表示・45日超⚠️マーク・フィルタ付き**）
@@ -221,7 +221,7 @@ ligo-crm/
 ├── HANDOFF.md          ← このファイル
 ├── index.html          ← PC管理者ダッシュボード
 ├── mobile.html         ← スマホ総合（営業）
-├── input.html          ← スマホ入力専用（LIGO Tap）
+├── input.html          ← スマホ入力専用（LIPON Tap）
 └── sf-export/          ← Salesforce CSV置き場（空、Data Loaderで投入予定）
 ```
 

@@ -1,6 +1,6 @@
-# LIGO CRM — モック
+# LIPON — モック
 
-株式会社LIGOの新CRMツール 3画面モック。
+株式会社LIGOの新CRMツール「LIPON」 3画面モック。
 
 ## 🚀 ライブプレビュー（GitHub Pages）
 
@@ -8,7 +8,7 @@
 |---|---|---|
 | 🖥 **PC 管理者ダッシュボード** | [/index.html](./index.html) | 全社俯瞰・カスタムダッシュボード |
 | 📱 **スマホ総合（営業用）** | [/mobile.html](./mobile.html) | フィールド営業の日常 |
-| 📲 **入力専用 LIGO Tap** | [/input.html](./input.html) | 5タップで接点記録 |
+| 📲 **入力専用 LIPON Tap** | [/input.html](./input.html) | 5タップで接点記録 |
 
 ## 📋 プロジェクト概要
 

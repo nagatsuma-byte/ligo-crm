@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LIGO CRM — Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<style>
+  :root {
+    --pink-50: #FFF1F5;
+    --pink-100: #FFE0EA;
+    --pink-200: #FFC2D5;
+    --pink-500: #EC4899;
+    --pink-600: #DB2777;
+    --pink-700: #BE185D;
+    --ink: #1F2937;
+    --muted: #6B7280;
+    --line: #E5E7EB;
+    --bg: #FFFFFF;
+    --side: #F8FAFC;
+  }
+  html, body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  .sidebar { background: var(--side); border-right: 1px solid var(--line); }
+  .nav-item { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:6px; font-size:13.5px; color:#374151; cursor:pointer; }
+  .nav-item:hover { background:#F1F5F9; }
+  .nav-item.active { background: var(--pink-50); color: var(--pink-700); font-weight:600; }
+  .nav-section { font-size:11px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; padding:14px 10px 4px; display:flex; justify-content:space-between; align-items:center;}
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; }
+  .kpi-card { padding:16px; border:1px solid var(--line); border-radius:10px; background:#fff; position:relative; overflow:hidden;}
+  .kpi-label { font-size:12px; color:var(--muted); margin-bottom:6px;}
+  .kpi-value { font-size:24px; font-weight:700; color:var(--ink);}
+  .kpi-delta { font-size:11px; margin-top:4px; }
+  .delta-up { color:#10B981; }
+  .delta-down { color:#EF4444; }
+  .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:500; }
+  .badge-pink { background:var(--pink-50); color:var(--pink-700);}
+  .badge-green { background:#ECFDF5; color:#065F46;}
+  .badge-yellow { background:#FEF9C3; color:#92400E;}
+  .badge-red { background:#FEE2E2; color:#B91C1C;}
+  .badge-gray { background:#F3F4F6; color:#374151;}
+  .signal-dot { width:8px; height:8px; border-radius:999px; display:inline-block; }
+  .channel-icon { width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:14px; }
+  .timeline-line { position:absolute; left:14px; top:0; bottom:0; width:2px; background:var(--line);}
+  .kanban-col { background:#F8FAFC; border:1px solid var(--line); border-radius:10px; padding:10px; min-height:400px;}
+  .deal-card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; cursor:grab; }
+  .deal-card:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-color:var(--pink-200);}
+  .pill-btn { padding:8px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff; cursor:pointer; transition: all .15s;}
+  .pill-btn:hover { border-color:var(--pink-500); color:var(--pink-700);}
+  .pill-btn.active { background:var(--pink-500); color:#fff; border-color:var(--pink-500);}
+  .scrollbar::-webkit-scrollbar { width:6px; height:6px;}
+  .scrollbar::-webkit-scrollbar-thumb { background:#CBD5E1; border-radius:3px;}
+  table.compact th { font-size:11px; color:var(--muted); font-weight:500; text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); background:#FAFAFA;}
+  table.compact td { font-size:13px; padding:10px 12px; border-bottom:1px solid var(--line);}
+  table.compact tr:hover td { background: #FFF9FB;}
+  .view { display:none; }
+  .view.active { display:block; }
+  .header-search { background:#F1F5F9; border:1px solid transparent; border-radius:8px; padding:6px 10px; font-size:13px; width:340px;}
+  .header-search:focus { outline:none; background:#fff; border-color:var(--pink-200);}
+  .ring-pink { box-shadow: 0 0 0 3px var(--pink-50);}
+  /* Widget grid (custom dashboard) */
+  .widget-grid { display:grid; grid-template-columns: repeat(12, 1fr); gap:12px; }
+  .widget { position:relative; transition: box-shadow .15s, border-color .15s;}
+  .widget.edit-mode { border:1px dashed var(--pink-200);}
+  .widget.edit-mode:hover { border-color: var(--pink-500); box-shadow: 0 0 0 3px var(--pink-50);}
+  .widget-handle { position:absolute; top:6px; right:6px; display:none; gap:4px; }
+  .widget.edit-mode .widget-handle { display:flex;}
+  .widget-handle button { width:24px; height:24px; border-radius:6px; background:#fff; border:1px solid var(--line); font-size:12px; cursor:pointer; }
+  .widget-handle button:hover { background:var(--pink-50); color:var(--pink-700); border-color:var(--pink-200);}
+  .palette-item { padding:10px; border:1px solid var(--line); border-radius:8px; background:#fff; cursor:grab; transition: all .15s;}
+  .palette-item:hover { border-color: var(--pink-500); background: var(--pink-50);}
+  .modal-bg { position:fixed; inset:0; background:rgba(15,23,42,0.4); display:none; align-items:center; justify-content:center; z-index:50;}
+  .modal-bg.open { display:flex;}
+  .col-12{grid-column:span 12;} .col-8{grid-column:span 8;} .col-6{grid-column:span 6;} .col-4{grid-column:span 4;} .col-3{grid-column:span 3;}
+  .sortable-ghost { opacity:0.4; }
+  .role-tab { padding:6px 14px; font-size:13px; border-radius:6px; cursor:pointer; }
+  .role-tab.active { background:var(--pink-500); color:#fff;}
+</style>
+</head>
+<body class="h-screen overflow-hidden">
+
+<div class="flex h-screen">
+
+  <!-- Sidebar -->
+  <aside class="sidebar w-56 flex-shrink-0 flex flex-col">
+    <div class="px-3 py-3 border-b border-gray-200 flex items-center gap-2">
+      <div class="w-7 h-7 rounded-md bg-pink-500 text-white text-sm font-bold flex items-center justify-center" style="background:var(--pink-500);">L</div>
+      <div class="flex-1">
+        <div class="text-sm font-bold">LIGO CRM</div>
+        <div class="text-[11px] text-gray-500">株式会社LIGO</div>
+      </div>
+      <a href="mobile.html" title="モバイル版" class="text-base">📱</a>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-2 py-2 scrollbar">
+      <div class="nav-section">メイン</div>
+      <div class="nav-item active" data-view="dashboard">📊 ダッシュボード（全社）</div>
+      <div class="nav-item" data-view="my-dashboard">👤 マイダッシュボード</div>
+      <div class="nav-item" data-view="custom-dashboard">🎨 カスタム（管理者）</div>
+      <div class="nav-item" data-view="customers">🏢 顧客一覧</div>
+      <div class="nav-item" data-view="customer-detail">📁 顧客詳細</div>
+
+      <div class="nav-section">入力</div>
+      <div class="nav-item" data-view="touchpoint">✍️ 接点入力</div>
+      <div class="nav-item" data-view="kanban">🎯 ヨミ管理</div>
+
+      <div class="nav-section">分析</div>
+      <div class="nav-item" data-view="sales-perf">👤 営業/CS分析</div>
+      <div class="nav-item" data-view="trends">📈 傾向分析</div>
+
+      <div class="nav-section">データ</div>
+      <div class="nav-item" data-view="import">📥 CSV取込</div>
+      <div class="nav-item" data-view="settings">⚙️ 設定</div>
+    </nav>
+
+    <div class="px-3 py-3 border-t border-gray-200 flex items-center gap-2">
+      <div class="w-7 h-7 rounded-full bg-gray-300 text-white text-xs font-bold flex items-center justify-center">木</div>
+      <div class="text-xs">
+        <div class="font-medium">木村 亮介</div>
+        <div class="text-gray-500">営業</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <!-- Top bar -->
+    <div class="border-b border-gray-200 px-6 py-3 flex items-center justify-between bg-white">
+      <div class="flex items-center gap-3">
+        <h1 id="page-title" class="text-base font-bold">ダッシュボード</h1>
+        <span class="text-xs text-gray-400">2026年5月</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <input type="text" placeholder="🔍 顧客・担当者・メモを検索" class="header-search"/>
+        <button class="pill-btn" style="background:var(--pink-500); color:#fff; border-color:var(--pink-500);">+ 接点を記録</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-y-auto scrollbar bg-gray-50">
+
+      <!-- =========== DASHBOARD =========== -->
+      <section id="view-dashboard" class="view active p-6 space-y-6">
+
+        <!-- KPI row -->
+        <div class="grid grid-cols-5 gap-4">
+          <div class="kpi-card">
+            <div class="kpi-label">今月の売上</div>
+            <div class="kpi-value">¥8.42M</div>
+            <div class="kpi-delta delta-up">▲ 12.4%（前月比）</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Aヨミ金額</div>
+            <div class="kpi-value">¥3.18M</div>
+            <div class="kpi-delta delta-up">▲ 8.1%</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">今月の接点数</div>
+            <div class="kpi-value">412</div>
+            <div class="kpi-delta delta-up">▲ 22</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">アクティブ顧客</div>
+            <div class="kpi-value">87</div>
+            <div class="kpi-delta delta-down">▼ 3（休眠化）</div>
+          </div>
+          <div class="kpi-card" style="background: var(--pink-50); border-color: var(--pink-200);">
+            <div class="kpi-label" style="color:var(--pink-700);">⚠️ 要対応</div>
+            <div class="kpi-value" style="color:var(--pink-700);">14</div>
+            <div class="kpi-delta">接触30日超 / Aヨミ未進捗</div>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-4 col-span-2">
+            <div class="flex justify-between items-center mb-3">
+              <div class="font-semibold text-sm">月次売上 vs ヨミ</div>
+              <div class="flex gap-1">
+                <button class="pill-btn text-xs active">月</button>
+                <button class="pill-btn text-xs">Q</button>
+                <button class="pill-btn text-xs">年</button>
+              </div>
+            </div>
+            <canvas id="chart-revenue" height="100"></canvas>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">ヨミファネル（今月）</div>
+            <canvas id="chart-funnel" height="100"></canvas>
+            <div class="mt-3 text-xs text-gray-500 leading-relaxed">
+              成約率: <span class="font-semibold text-pink-700" style="color:var(--pink-700);">18%</span> ／ 前月比 <span class="delta-up">▲2pt</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Second row -->
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">営業ランキング（今月売上）</div>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2">
+                <div class="w-6 text-right text-xs font-bold text-gray-400">1</div>
+                <div class="w-7 h-7 rounded-full bg-pink-100 text-pink-700 text-xs font-bold flex items-center justify-center" style="background:var(--pink-100);color:var(--pink-700);">香</div>
+                <div class="flex-1">
+                  <div class="text-sm font-medium">香川 昇</div>
+                  <div class="h-1.5 bg-gray-100 rounded mt-1"><div class="h-1.5 rounded" style="width:90%; background:var(--pink-500);"></div></div>
+                </div>
+                <div class="text-sm font-bold">¥2.4M</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-6 text-right text-xs font-bold text-gray-400">2</div>
+                <div class="w-7 h-7 rounded-full bg-pink-100 text-pink-700 text-xs font-bold flex items-center justify-center" style="background:var(--pink-100);color:var(--pink-700);">木</div>
+                <div class="flex-1">
+                  <div class="text-sm font-medium">木村 亮介</div>
+                  <div class="h-1.5 bg-gray-100 rounded mt-1"><div class="h-1.5 rounded" style="width:72%; background:var(--pink-500);"></div></div>
+                </div>
+                <div class="text-sm font-bold">¥1.9M</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-6 text-right text-xs font-bold text-gray-400">3</div>
+                <div class="w-7 h-7 rounded-full bg-pink-100 text-pink-700 text-xs font-bold flex items-center justify-center" style="background:var(--pink-100);color:var(--pink-700);">渡</div>
+                <div class="flex-1">
+                  <div class="text-sm font-medium">渡辺</div>
+                  <div class="h-1.5 bg-gray-100 rounded mt-1"><div class="h-1.5 rounded" style="width:60%; background:var(--pink-500);"></div></div>
+                </div>
+                <div class="text-sm font-bold">¥1.6M</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-6 text-right text-xs font-bold text-gray-400">4</div>
+                <div class="w-7 h-7 rounded-full bg-pink-100 text-pink-700 text-xs font-bold flex items-center justify-center" style="background:var(--pink-100);color:var(--pink-700);">伊</div>
+                <div class="flex-1">
+                  <div class="text-sm font-medium">伊藤</div>
+                  <div class="h-1.5 bg-gray-100 rounded mt-1"><div class="h-1.5 rounded" style="width:48%; background:var(--pink-500);"></div></div>
+                </div>
+                <div class="text-sm font-bold">¥1.3M</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-6 text-right text-xs font-bold text-gray-400">5</div>
+                <div class="w-7 h-7 rounded-full bg-pink-100 text-pink-700 text-xs font-bold flex items-center justify-center" style="background:var(--pink-100);color:var(--pink-700);">片</div>
+                <div class="flex-1">
+                  <div class="text-sm font-medium">片岡 仙充</div>
+                  <div class="h-1.5 bg-gray-100 rounded mt-1"><div class="h-1.5 rounded" style="width:38%; background:var(--pink-500);"></div></div>
+                </div>
+                <div class="text-sm font-bold">¥1.0M</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">活動量（接点手段別）</div>
+            <canvas id="chart-channel" height="160"></canvas>
+          </div>
+
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">商品別売上構成</div>
+            <canvas id="chart-product" height="160"></canvas>
+          </div>
+        </div>
+
+        <!-- 採用ステータス分布 -->
+        <div class="card p-4">
+          <div class="flex justify-between items-center mb-3">
+            <div class="font-semibold text-sm">📋 採用ステータス分布（87社）</div>
+            <span class="text-xs" style="color:var(--muted);">記入タイミング & 蓄積</span>
+          </div>
+          <div class="grid grid-cols-5 gap-3 mb-4">
+            <div class="text-center p-3 rounded-lg" style="background:#ECFDF5;">
+              <div class="text-2xl font-bold" style="color:#10B981;">A</div>
+              <div class="text-[11px]" style="color:#065F46;">採用有充足</div>
+              <div class="text-lg font-bold mt-1">18<span class="text-xs text-gray-400 ml-0.5">社</span></div>
+              <div class="text-[10px]" style="color:var(--muted);">21%</div>
+            </div>
+            <div class="text-center p-3 rounded-lg" style="background:var(--pink-50);">
+              <div class="text-2xl font-bold" style="color:var(--pink-600);">B</div>
+              <div class="text-[11px]" style="color:var(--pink-700);">採用有未充足</div>
+              <div class="text-lg font-bold mt-1">29<span class="text-xs text-gray-400 ml-0.5">社</span></div>
+              <div class="text-[10px]" style="color:var(--muted);">33%</div>
+            </div>
+            <div class="text-center p-3 rounded-lg" style="background:#FEF9C3;">
+              <div class="text-2xl font-bold" style="color:#92400E;">C</div>
+              <div class="text-[11px]" style="color:#92400E;">面接有未採用</div>
+              <div class="text-lg font-bold mt-1">21<span class="text-xs text-gray-400 ml-0.5">社</span></div>
+              <div class="text-[10px]" style="color:var(--muted);">24%</div>
+            </div>
+            <div class="text-center p-3 rounded-lg" style="background:#FFEDD5;">
+              <div class="text-2xl font-bold" style="color:#9A3412;">D</div>
+              <div class="text-[11px]" style="color:#9A3412;">応募有未面接</div>
+              <div class="text-lg font-bold mt-1">12<span class="text-xs text-gray-400 ml-0.5">社</span></div>
+              <div class="text-[10px]" style="color:var(--muted);">14%</div>
+            </div>
+            <div class="text-center p-3 rounded-lg" style="background:#F1F5F9;">
+              <div class="text-2xl font-bold" style="color:#475569;">E</div>
+              <div class="text-[11px]" style="color:#475569;">応募無</div>
+              <div class="text-lg font-bold mt-1">7<span class="text-xs text-gray-400 ml-0.5">社</span></div>
+              <div class="text-[10px]" style="color:var(--muted);">8%</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="text-xs font-semibold mb-2" style="color:var(--muted);">過去90日のステータス推移</div>
+              <canvas id="chart-recruit-trend" height="130"></canvas>
+            </div>
+            <div>
+              <div class="text-xs font-semibold mb-2" style="color:var(--muted);">平均滞在日数</div>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-6 text-center font-bold" style="color:#94A3B8;">E→D</span>
+                  <div class="flex-1 h-2 bg-gray-100 rounded"><div class="h-2 rounded" style="width:35%; background:#FB923C;"></div></div>
+                  <span class="w-12 text-right font-semibold">12日</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-6 text-center font-bold" style="color:#FB923C;">D→C</span>
+                  <div class="flex-1 h-2 bg-gray-100 rounded"><div class="h-2 rounded" style="width:48%; background:#F59E0B;"></div></div>
+                  <span class="w-12 text-right font-semibold">17日</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-6 text-center font-bold" style="color:#F59E0B;">C→B</span>
+                  <div class="flex-1 h-2 bg-gray-100 rounded"><div class="h-2 rounded" style="width:32%; background:var(--pink-500);"></div></div>
+                  <span class="w-12 text-right font-semibold">11日</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-6 text-center font-bold" style="color:var(--pink-600);">B→A</span>
+                  <div class="flex-1 h-2 bg-gray-100 rounded"><div class="h-2 rounded" style="width:62%; background:#10B981;"></div></div>
+                  <span class="w-12 text-right font-semibold">22日</span>
+                </div>
+              </div>
+              <div class="mt-3 text-[11px]" style="color:var(--muted);">💡 D→C が最も時間がかかる。面接設定の支援余地あり</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert list -->
+        <div class="card p-4">
+          <div class="flex justify-between items-center mb-3">
+            <div class="font-semibold text-sm">⚠️ 要対応リスト</div>
+            <div class="text-xs text-gray-400">直近で接点・進捗が止まっている顧客</div>
+          </div>
+          <table class="compact w-full">
+            <thead>
+              <tr>
+                <th>顧客</th><th>担当</th><th>ステータス</th><th>最終接点</th><th>ヨミ金額</th><th>シグナル</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-medium">株式会社H.A.S</td>
+                <td>木村 亮介</td>
+                <td><span class="badge badge-yellow">IS架電依頼</span></td>
+                <td class="text-gray-500">722日前</td>
+                <td>—</td>
+                <td><span class="signal-dot" style="background:#EF4444;"></span> 危険</td>
+              </tr>
+              <tr>
+                <td class="font-medium">中条商事株式会社</td>
+                <td>伊藤</td>
+                <td><span class="badge badge-pink">Bヨミ</span></td>
+                <td class="text-gray-500">45日前</td>
+                <td>¥520,000</td>
+                <td><span class="signal-dot" style="background:#F59E0B;"></span> 注意</td>
+              </tr>
+              <tr>
+                <td class="font-medium">株式会社丸松</td>
+                <td>香川 昇</td>
+                <td><span class="badge badge-gray">失注後フォロー</span></td>
+                <td class="text-gray-500">63日前</td>
+                <td>—</td>
+                <td><span class="signal-dot" style="background:#F59E0B;"></span> 注意</td>
+              </tr>
+              <tr>
+                <td class="font-medium">株式会社光星運輸</td>
+                <td>木村 亮介</td>
+                <td><span class="badge badge-yellow">IS対応中</span></td>
+                <td class="text-gray-500">32日前</td>
+                <td>—</td>
+                <td><span class="signal-dot" style="background:#F59E0B;"></span> 注意</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========== MY DASHBOARD =========== -->
+      <section id="view-my-dashboard" class="view p-6 space-y-6">
+        <!-- Greeting + period switch -->
+        <div class="flex justify-between items-center">
+          <div>
+            <div class="text-sm text-gray-500">こんにちは、木村さん 👋</div>
+            <div class="text-xs text-gray-400">あなたの今月のパフォーマンス</div>
+          </div>
+          <div class="flex gap-1">
+            <button class="pill-btn text-xs">今週</button>
+            <button class="pill-btn text-xs active">今月</button>
+            <button class="pill-btn text-xs">Q2</button>
+            <button class="pill-btn text-xs">年</button>
+          </div>
+        </div>
+
+        <!-- KPI row (personal) -->
+        <div class="grid grid-cols-5 gap-4">
+          <div class="kpi-card">
+            <div class="kpi-label">自分の売上</div>
+            <div class="kpi-value">¥1.9M</div>
+            <div class="kpi-delta delta-up">▲ 18% (前月比)</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">目標達成率</div>
+            <div class="kpi-value">76%</div>
+            <div class="kpi-delta">目標 ¥2.5M</div>
+            <div class="h-1.5 bg-gray-100 rounded mt-2"><div class="h-1.5 rounded" style="width:76%; background:var(--pink-500);"></div></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Aヨミ金額</div>
+            <div class="kpi-value">¥820K</div>
+            <div class="kpi-delta delta-up">3件</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">今月の接点数</div>
+            <div class="kpi-value">87</div>
+            <div class="kpi-delta">前月 72 ▲15</div>
+          </div>
+          <div class="kpi-card" style="background: var(--pink-50); border-color: var(--pink-200);">
+            <div class="kpi-label" style="color:var(--pink-700);">🔔 今日やること</div>
+            <div class="kpi-value" style="color:var(--pink-700);">6</div>
+            <div class="kpi-delta">フォロー4 / クロージング2</div>
+          </div>
+        </div>
+
+        <!-- TODAY priority -->
+        <div class="card p-4">
+          <div class="flex justify-between items-center mb-3">
+            <div class="font-semibold text-sm">🎯 今日の優先アクション</div>
+            <span class="text-xs text-gray-400">AIが過去の活動から提案</span>
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 p-2 rounded hover:bg-pink-50 cursor-pointer" style="">
+              <span class="badge badge-red">クロージング</span>
+              <div class="flex-1">
+                <div class="text-sm font-medium">株式会社トランスポートジャコ — 申込書提出から12日経過</div>
+                <div class="text-xs text-gray-500">最終接点 5/10 / Aヨミ ¥800K</div>
+              </div>
+              <button class="pill-btn text-xs">📞 架電</button>
+            </div>
+            <div class="flex items-center gap-3 p-2 rounded hover:bg-pink-50 cursor-pointer">
+              <span class="badge badge-yellow">フォロー</span>
+              <div class="flex-1">
+                <div class="text-sm font-medium">丸進運輸 — 月次レポート送付タイミング</div>
+                <div class="text-xs text-gray-500">前月同タイミングで継続提案成功</div>
+              </div>
+              <button class="pill-btn text-xs">📧 メール</button>
+            </div>
+            <div class="flex items-center gap-3 p-2 rounded hover:bg-pink-50 cursor-pointer">
+              <span class="badge badge-pink">商談</span>
+              <div class="flex-1">
+                <div class="text-sm font-medium">株式会社盛運 — 提案資料準備</div>
+                <div class="text-xs text-gray-500">明日11:00 Zoom予定</div>
+              </div>
+              <button class="pill-btn text-xs">📎 資料</button>
+            </div>
+            <div class="flex items-center gap-3 p-2 rounded hover:bg-pink-50 cursor-pointer">
+              <span class="badge badge-red">休眠リスク</span>
+              <div class="flex-1">
+                <div class="text-sm font-medium">株式会社光星運輸 — 32日接点なし</div>
+                <div class="text-xs text-gray-500">Bヨミから停滞</div>
+              </div>
+              <button class="pill-btn text-xs">📞 架電</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Personal charts -->
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-4 col-span-2">
+            <div class="font-semibold text-sm mb-3">自分の月次売上推移</div>
+            <canvas id="chart-my-revenue" height="100"></canvas>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">自分のヨミ内訳</div>
+            <canvas id="chart-my-funnel" height="100"></canvas>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">接点手段の比率</div>
+            <canvas id="chart-my-channel" height="160"></canvas>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">活動の質スコア</div>
+            <div class="flex flex-col items-center justify-center h-44">
+              <div class="relative w-32 h-32">
+                <canvas id="chart-my-quality" width="128" height="128"></canvas>
+                <div class="absolute inset-0 flex items-center justify-center flex-col">
+                  <div class="text-2xl font-bold" style="color:var(--pink-700);">82</div>
+                  <div class="text-xs text-gray-500">/ 100</div>
+                </div>
+              </div>
+              <div class="text-xs text-gray-500 mt-2">チーム平均 71</div>
+            </div>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">チーム内の順位</div>
+            <div class="text-center mt-2">
+              <div class="text-4xl font-bold" style="color:var(--pink-700);">2<span class="text-base text-gray-400">位 / 5人</span></div>
+              <div class="text-xs text-gray-500 mt-3">1位まで <span class="font-semibold">¥500K</span></div>
+              <div class="text-xs text-gray-500 mt-1">今月のMVPまで 23接点</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- My customers -->
+        <div class="card p-4">
+          <div class="flex justify-between items-center mb-3">
+            <div class="font-semibold text-sm">自分の担当顧客</div>
+            <span class="text-xs text-gray-400">22社</span>
+          </div>
+          <table class="compact w-full">
+            <thead><tr><th>顧客</th><th>ステータス</th><th>最終接点</th><th>今月ヨミ</th><th>シグナル</th></tr></thead>
+            <tbody>
+              <tr><td class="font-medium">丸進運輸株式会社</td><td><span class="badge badge-pink">Aヨミ</span></td><td>1日前</td><td>¥350K</td><td><span class="signal-dot" style="background:#10B981;"></span> 良好</td></tr>
+              <tr><td class="font-medium">株式会社盛運</td><td><span class="badge badge-pink">継続中</span></td><td>8日前</td><td>¥420K</td><td><span class="signal-dot" style="background:#10B981;"></span> 良好</td></tr>
+              <tr><td class="font-medium">株式会社光星運輸</td><td><span class="badge badge-yellow">IS対応中</span></td><td>32日前</td><td>—</td><td><span class="signal-dot" style="background:#F59E0B;"></span> 注意</td></tr>
+              <tr><td class="font-medium">株式会社H.A.S</td><td><span class="badge badge-yellow">IS架電依頼</span></td><td>722日前</td><td>—</td><td><span class="signal-dot" style="background:#EF4444;"></span> 危険</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========== CUSTOM DASHBOARD (Admin) =========== -->
+      <section id="view-custom-dashboard" class="view p-6 space-y-4">
+        <div class="card p-4">
+          <div class="flex justify-between items-center">
+            <div>
+              <div class="font-semibold text-sm">カスタムダッシュボード設計</div>
+              <div class="text-xs text-gray-500 mt-1">ロール別レイアウトを編集。ウィジェットをドラッグして並び替え。</div>
+            </div>
+            <div class="flex gap-2 items-center">
+              <span class="text-xs text-gray-400">対象：</span>
+              <div class="flex gap-1 border border-gray-200 rounded-md p-0.5">
+                <div class="role-tab active" data-role="admin">管理者</div>
+                <div class="role-tab" data-role="sales">営業</div>
+                <div class="role-tab" data-role="cs">CS</div>
+                <div class="role-tab" data-role="viewer">閲覧</div>
+              </div>
+              <button class="pill-btn" id="btn-add-widget">+ ウィジェット追加</button>
+              <button class="pill-btn" id="btn-toggle-edit" style="background:var(--pink-500);color:#fff;border-color:var(--pink-500);">✏️ 編集モード ON</button>
+              <button class="pill-btn">💾 保存</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="widget-grid" id="custom-grid">
+          <div class="card widget col-3 p-4 edit-mode" data-w="kpi-revenue">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="kpi-label">今月の売上</div>
+            <div class="kpi-value">¥8.42M</div>
+            <div class="kpi-delta delta-up">▲ 12%</div>
+          </div>
+          <div class="card widget col-3 p-4 edit-mode" data-w="kpi-forecast">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="kpi-label">Aヨミ金額</div>
+            <div class="kpi-value">¥3.18M</div>
+            <div class="kpi-delta delta-up">▲ 8%</div>
+          </div>
+          <div class="card widget col-3 p-4 edit-mode" data-w="kpi-touchpoints">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="kpi-label">今月の接点数</div>
+            <div class="kpi-value">412</div>
+            <div class="kpi-delta">前月比 ▲ 22</div>
+          </div>
+          <div class="card widget col-3 p-4 edit-mode" data-w="kpi-active">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="kpi-label">アクティブ顧客</div>
+            <div class="kpi-value">87</div>
+            <div class="kpi-delta delta-down">▼ 3</div>
+          </div>
+
+          <div class="card widget col-8 p-4 edit-mode" data-w="chart-revenue">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="font-semibold text-sm mb-3">月次売上 vs ヨミ</div>
+            <canvas id="chart-c-revenue" height="80"></canvas>
+          </div>
+          <div class="card widget col-4 p-4 edit-mode" data-w="chart-funnel">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="font-semibold text-sm mb-3">ヨミファネル</div>
+            <canvas id="chart-c-funnel" height="100"></canvas>
+          </div>
+
+          <div class="card widget col-6 p-4 edit-mode" data-w="ranking">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="font-semibold text-sm mb-3">営業ランキング</div>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2"><div class="w-6 text-right text-xs font-bold text-gray-400">1</div><div class="flex-1 text-sm">香川 昇</div><div class="text-sm font-bold">¥2.4M</div></div>
+              <div class="flex items-center gap-2"><div class="w-6 text-right text-xs font-bold text-gray-400">2</div><div class="flex-1 text-sm">木村 亮介</div><div class="text-sm font-bold">¥1.9M</div></div>
+              <div class="flex items-center gap-2"><div class="w-6 text-right text-xs font-bold text-gray-400">3</div><div class="flex-1 text-sm">渡辺</div><div class="text-sm font-bold">¥1.6M</div></div>
+            </div>
+          </div>
+          <div class="card widget col-6 p-4 edit-mode" data-w="channel">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="font-semibold text-sm mb-3">手段別接点</div>
+            <canvas id="chart-c-channel" height="120"></canvas>
+          </div>
+
+          <div class="card widget col-12 p-4 edit-mode" data-w="alert-list">
+            <div class="widget-handle"><button title="設定">⚙</button><button title="削除">✕</button></div>
+            <div class="font-semibold text-sm mb-3">要対応リスト</div>
+            <table class="compact w-full">
+              <thead><tr><th>顧客</th><th>担当</th><th>ステータス</th><th>最終接点</th><th>シグナル</th></tr></thead>
+              <tbody>
+                <tr><td>株式会社H.A.S</td><td>木村 亮介</td><td><span class="badge badge-yellow">IS架電依頼</span></td><td>722日前</td><td><span class="signal-dot" style="background:#EF4444;"></span> 危険</td></tr>
+                <tr><td>中条商事株式会社</td><td>伊藤</td><td><span class="badge badge-pink">Bヨミ</span></td><td>45日前</td><td><span class="signal-dot" style="background:#F59E0B;"></span> 注意</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="text-xs text-gray-400">💡 ヒント：ウィジェットをドラッグして並び替え、右上のアイコンで設定/削除できます。「+ウィジェット追加」から新しいパーツを追加。</div>
+      </section>
+
+      <!-- Widget palette modal -->
+      <div class="modal-bg" id="palette-modal">
+        <div class="card p-5 w-[640px] max-h-[80vh] overflow-y-auto scrollbar">
+          <div class="flex justify-between items-center mb-4">
+            <div class="font-bold">ウィジェットを追加</div>
+            <button class="pill-btn" onclick="document.getElementById('palette-modal').classList.remove('open')">閉じる</button>
+          </div>
+          <div class="text-xs font-semibold text-gray-500 mb-2">📊 KPIカード</div>
+          <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="palette-item"><div class="text-xs font-medium">売上</div><div class="text-[10px] text-gray-500">月/Q/年 切替</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">ヨミ金額</div><div class="text-[10px] text-gray-500">A/B/C切替</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">接点数</div><div class="text-[10px] text-gray-500">期間切替</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">アクティブ顧客数</div><div class="text-[10px] text-gray-500">休眠定義変更可</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">成約率</div><div class="text-[10px] text-gray-500">ファネル切口</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">広告費消</div><div class="text-[10px] text-gray-500">Indeed/doda</div></div>
+          </div>
+          <div class="text-xs font-semibold text-gray-500 mb-2">📈 グラフ</div>
+          <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="palette-item"><div class="text-xs font-medium">月次トレンド</div><div class="text-[10px] text-gray-500">棒/折れ線</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">ヨミファネル</div><div class="text-[10px] text-gray-500">横バー</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">手段別ドーナツ</div><div class="text-[10px] text-gray-500">電話/訪問/メール…</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">商品別構成</div><div class="text-[10px] text-gray-500">ドーナツ</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">活動の質スタック</div><div class="text-[10px] text-gray-500">手段×結果</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">拠点ヒートマップ</div><div class="text-[10px] text-gray-500">支社×売上</div></div>
+          </div>
+          <div class="text-xs font-semibold text-gray-500 mb-2">📋 リスト/テーブル</div>
+          <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="palette-item"><div class="text-xs font-medium">営業ランキング</div><div class="text-[10px] text-gray-500">売上/接点/質</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">要対応リスト</div><div class="text-[10px] text-gray-500">条件カスタム</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">直近の接点</div><div class="text-[10px] text-gray-500">タイムライン</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">Top顧客</div><div class="text-[10px] text-gray-500">売上順</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">休眠リスク</div><div class="text-[10px] text-gray-500">スコアリング</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">商談一覧</div><div class="text-[10px] text-gray-500">フィルタ可</div></div>
+          </div>
+          <div class="text-xs font-semibold text-gray-500 mb-2">⭐ 採用ファネル（Indeed連携）</div>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="palette-item"><div class="text-xs font-medium">応募数推移</div><div class="text-[10px] text-gray-500">日次/週次</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">応募単価</div><div class="text-[10px] text-gray-500">目標との差分</div></div>
+            <div class="palette-item"><div class="text-xs font-medium">キャンペーン状況</div><div class="text-[10px] text-gray-500">有効/予算残</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========== CUSTOMERS LIST =========== -->
+      <section id="view-customers" class="view p-6 space-y-4">
+        <div class="flex gap-2 items-center">
+          <button class="pill-btn active">すべて</button>
+          <button class="pill-btn">アクティブ</button>
+          <button class="pill-btn">商談中</button>
+          <button class="pill-btn">休眠</button>
+          <button class="pill-btn">要対応</button>
+          <div class="flex-1"></div>
+          <select class="pill-btn">
+            <option>担当：すべて</option><option>木村 亮介</option><option>香川 昇</option>
+          </select>
+          <select class="pill-btn">
+            <option>並び：最終接点が新しい順</option><option>売上が多い順</option><option>会社名</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4" id="customer-grid">
+          <!-- cards filled by JS -->
+        </div>
+      </section>
+
+      <!-- =========== CUSTOMER DETAIL =========== -->
+      <section id="view-customer-detail" class="view p-6 space-y-4">
+        <div class="card p-5">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-2 text-xs text-gray-400">
+                <span>顧客 / アクティブ</span>
+                <span class="signal-dot" style="background:#10B981;"></span>
+              </div>
+              <h2 class="text-xl font-bold mt-1">有限会社ナカムラ</h2>
+              <div class="flex gap-2 mt-2 text-xs">
+                <span class="badge badge-pink">継続中</span>
+                <span class="badge badge-gray">運送業</span>
+                <span class="badge badge-gray">関東支社</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button class="pill-btn">編集</button>
+              <button class="pill-btn" style="background:var(--pink-500); color:#fff; border-color:var(--pink-500);">+ 接点を記録</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-5 gap-4 mt-5 pt-5 border-t border-gray-200">
+            <div>
+              <div class="text-xs text-gray-500 mb-1">営業担当</div>
+              <div class="flex items-center gap-2 text-sm font-medium"><div class="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center" style="background:var(--pink-100);color:var(--pink-700);">香</div>香川 昇</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500 mb-1">CS担当</div>
+              <div class="flex items-center gap-2 text-sm font-medium"><div class="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center bg-blue-100 text-blue-700">久</div>久保田 美帆</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500 mb-1">累計売上</div>
+              <div class="text-sm font-bold">¥5.53M</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500 mb-1">今月のヨミ</div>
+              <div class="text-sm font-bold" style="color:var(--pink-700);">¥360,000</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500 mb-1">最終接点</div>
+              <div class="text-sm font-medium">4日前 (電話)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 採用ステータス -->
+        <div class="card p-4">
+          <div class="flex justify-between items-center mb-3">
+            <div class="font-semibold text-sm">📋 採用ステータス</div>
+            <button class="pill-btn text-xs">＋ 更新</button>
+          </div>
+          <div class="grid grid-cols-5 gap-2 mb-3">
+            <div class="text-center py-3 rounded-lg" style="background:#F1F5F9;">
+              <div class="text-lg font-bold" style="color:#94A3B8;">A</div>
+              <div class="text-[10px]" style="color:#94A3B8;">採用有充足</div>
+            </div>
+            <div class="text-center py-3 rounded-lg ring-2 ring-pink-300" style="background:var(--pink-500); color:#fff;">
+              <div class="text-lg font-bold">B</div>
+              <div class="text-[10px]">採用有未充足</div>
+              <div class="text-[9px] mt-1 opacity-80">現在</div>
+            </div>
+            <div class="text-center py-3 rounded-lg" style="background:#F1F5F9;">
+              <div class="text-lg font-bold" style="color:#94A3B8;">C</div>
+              <div class="text-[10px]" style="color:#94A3B8;">面接有未採用</div>
+            </div>
+            <div class="text-center py-3 rounded-lg" style="background:#F1F5F9;">
+              <div class="text-lg font-bold" style="color:#94A3B8;">D</div>
+              <div class="text-[10px]" style="color:#94A3B8;">応募有未面接</div>
+            </div>
+            <div class="text-center py-3 rounded-lg" style="background:#F1F5F9;">
+              <div class="text-lg font-bold" style="color:#94A3B8;">E</div>
+              <div class="text-[10px]" style="color:#94A3B8;">応募無</div>
+            </div>
+          </div>
+
+          <!-- Timeline bar (proportional to duration) -->
+          <div class="text-xs font-semibold text-gray-500 mb-1">期間別の蓄積</div>
+          <div class="flex h-6 rounded-md overflow-hidden mb-1">
+            <div style="background:#94A3B8; width:0%;" title="A 0日"></div>
+            <div style="background:var(--pink-500); width:32%;" title="B 12日">12d</div>
+            <div style="background:#F59E0B; width:29%;" title="C 11日">11d</div>
+            <div style="background:#FB923C; width:39%;" title="D 15日">15d</div>
+            <div style="background:#94A3B8; width:0%;" title="E 0日"></div>
+          </div>
+          <div class="grid grid-cols-5 text-[10px] text-center" style="color:var(--muted);">
+            <div>A</div><div>B</div><div>C</div><div>D</div><div>E</div>
+          </div>
+
+          <!-- History -->
+          <div class="mt-4 pt-3 border-t border-gray-100">
+            <div class="text-xs font-semibold text-gray-500 mb-2">📍 ステータス履歴</div>
+            <table class="compact w-full">
+              <thead><tr><th>変更日</th><th>変更者</th><th>From</th><th>To</th><th>滞在日数</th></tr></thead>
+              <tbody>
+                <tr><td>2026/05/13</td><td>香川 昇</td><td><span class="badge badge-yellow">C 面接有未採用</span></td><td><span class="badge badge-pink">B 採用有未充足</span></td><td>11日</td></tr>
+                <tr><td>2026/05/01</td><td>香川 昇</td><td><span class="badge" style="background:#FFEDD5;color:#9A3412;">D 応募有未面接</span></td><td><span class="badge badge-yellow">C 面接有未採用</span></td><td>15日</td></tr>
+                <tr><td>2026/04/20</td><td>久保田 美帆</td><td><span class="badge badge-gray">E 応募無</span></td><td><span class="badge" style="background:#FFEDD5;color:#9A3412;">D 応募有未面接</span></td><td>—</td></tr>
+                <tr><td>2026/04/05</td><td>—</td><td>—</td><td><span class="badge badge-gray">E 応募無（初期）</span></td><td>—</td></tr>
+              </tbody>
+            </table>
+            <div class="mt-2 text-xs" style="color:var(--muted);">💡 平均移行日数：D→C 15日 / C→B 11日 ／ チーム平均より <span style="color:#10B981;">▲22%早い</span></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-4 col-span-2">
+            <div class="flex justify-between items-center mb-3">
+              <div class="font-semibold text-sm">月次売上 vs 費消（広告費）</div>
+              <button class="text-xs text-pink-600" style="color:var(--pink-600);">詳細</button>
+            </div>
+            <canvas id="chart-customer-rev" height="110"></canvas>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">商談（ヨミ）</div>
+            <div class="space-y-2">
+              <div class="deal-card">
+                <div class="flex justify-between items-center mb-1">
+                  <div class="text-xs font-medium">Indeed 継続2カ月</div>
+                  <span class="badge badge-green">成約</span>
+                </div>
+                <div class="text-sm font-bold">¥360,000</div>
+                <div class="text-xs text-gray-500 mt-1">完了 2026/02</div>
+              </div>
+              <div class="deal-card">
+                <div class="flex justify-between items-center mb-1">
+                  <div class="text-xs font-medium">求人BOX 新規</div>
+                  <span class="badge badge-pink">Aヨミ</span>
+                </div>
+                <div class="text-sm font-bold">¥180,000</div>
+                <div class="text-xs text-gray-500 mt-1">完了予定 2026/05</div>
+              </div>
+              <div class="deal-card">
+                <div class="flex justify-between items-center mb-1">
+                  <div class="text-xs font-medium">ハコプロ 提案中</div>
+                  <span class="badge badge-yellow">Bヨミ</span>
+                </div>
+                <div class="text-sm font-bold">¥240,000</div>
+                <div class="text-xs text-gray-500 mt-1">完了予定 2026/06</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-4 col-span-2">
+            <div class="font-semibold text-sm mb-4">接点タイムライン</div>
+            <div class="relative pl-10 space-y-5">
+              <div class="timeline-line"></div>
+              <div class="relative">
+                <div class="absolute -left-10 channel-icon" style="background:var(--pink-100);color:var(--pink-700);">📞</div>
+                <div class="text-xs text-gray-400">2026/05/13 (火) 14:30 ・ 香川 昇</div>
+                <div class="text-sm mt-1"><span class="badge badge-green">つながった</span> <span class="badge" style="background:#F1F5F9; color:#475569;">🔄 振返り</span> 継続2カ月の効果ヒアリング、応募が増えてきたとの回答</div>
+              </div>
+              <div class="relative">
+                <div class="absolute -left-10 channel-icon" style="background:#DBEAFE;color:#1D4ED8;">📧</div>
+                <div class="text-xs text-gray-400">2026/05/10 (土) 09:12 ・ 久保田 美帆</div>
+                <div class="text-sm mt-1"><span class="badge badge-gray">送信</span> <span class="badge" style="background:#F1F5F9; color:#475569;">👋 フォロー</span> 月次レポート送付、求人BOX提案資料添付</div>
+              </div>
+              <div class="relative">
+                <div class="absolute -left-10 channel-icon" style="background:#ECFDF5;color:#065F46;">🤝</div>
+                <div class="text-xs text-gray-400">2026/05/07 (水) 11:00 ・ 香川 昇</div>
+                <div class="text-sm mt-1"><span class="badge badge-green">前向き</span> <span class="badge badge-pink">💡 提案</span> 訪問、求人BOX提案。社長から「他媒体も検討したい」</div>
+              </div>
+              <div class="relative">
+                <div class="absolute -left-10 channel-icon" style="background:var(--pink-100);color:var(--pink-700);">📞</div>
+                <div class="text-xs text-gray-400">2026/04/28 (月) 13:00 ・ 香川 昇</div>
+                <div class="text-sm mt-1"><span class="badge badge-yellow">不在</span> <span class="badge" style="background:#F1F5F9; color:#475569;">👋 フォロー</span> 折り返し依頼</div>
+              </div>
+              <div class="relative">
+                <div class="absolute -left-10 channel-icon" style="background:#F3E8FF;color:#6D28D9;">💬</div>
+                <div class="text-xs text-gray-400">2026/04/20 (日) 10:15 ・ 香川 昇</div>
+                <div class="text-sm mt-1"><span class="badge badge-gray">Slack DM</span> <span class="badge badge-pink">💡 提案</span> 継続申込書送付</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">担当者</div>
+            <div class="space-y-3">
+              <div class="border border-gray-100 rounded-lg p-3 hover:border-pink-200">
+                <div class="text-sm font-semibold">中村 健太</div>
+                <div class="text-xs text-gray-500 mt-0.5">採用責任者 / 代表取締役</div>
+                <div class="text-xs text-gray-500 mt-1">📞 090-XXXX-XXXX</div>
+                <div class="text-xs text-gray-500">📧 nakamura@nakamura-co.jp</div>
+              </div>
+              <div class="border border-gray-100 rounded-lg p-3 hover:border-pink-200">
+                <div class="text-sm font-semibold">山田 浩二</div>
+                <div class="text-xs text-gray-500 mt-0.5">採用担当</div>
+                <div class="text-xs text-gray-500 mt-1">📞 090-XXXX-XXXX</div>
+              </div>
+              <button class="w-full pill-btn text-sm">+ 担当者を追加</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========== TOUCHPOINT INPUT =========== -->
+      <section id="view-touchpoint" class="view p-6">
+        <div class="card p-6 max-w-3xl mx-auto">
+          <h2 class="text-lg font-bold mb-1">接点を記録</h2>
+          <p class="text-xs text-gray-500 mb-5">タップ中心で記録、文字入力は任意です。</p>
+
+          <div class="space-y-5">
+            <div>
+              <div class="text-xs font-semibold text-gray-600 mb-2">① 顧客 <span class="text-pink-500">*</span></div>
+              <input type="text" placeholder="🔍 会社名で検索" class="w-full pill-btn" style="text-align:left;" value="有限会社ナカムラ">
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-gray-600 mb-2">② 相手</div>
+              <div class="flex gap-2 flex-wrap">
+                <button class="pill-btn active">中村 健太（責任者）</button>
+                <button class="pill-btn">山田 浩二</button>
+                <button class="pill-btn">+ 新規</button>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-gray-600 mb-2">③ 手段</div>
+              <div class="flex gap-2 flex-wrap">
+                <button class="pill-btn active">📞 電話</button>
+                <button class="pill-btn">🤝 訪問</button>
+                <button class="pill-btn">📧 メール</button>
+                <button class="pill-btn">💬 Slack</button>
+                <button class="pill-btn">🎥 Zoom</button>
+                <button class="pill-btn">📱 SMS</button>
+                <button class="pill-btn">その他</button>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-gray-600 mb-2">④ 結果</div>
+              <div class="flex gap-2 flex-wrap">
+                <button class="pill-btn">つながった</button>
+                <button class="pill-btn active" style="background:#10B981;color:#fff;border-color:#10B981;">前向き</button>
+                <button class="pill-btn">検討中</button>
+                <button class="pill-btn">不在</button>
+                <button class="pill-btn">NG</button>
+                <button class="pill-btn">成約</button>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-gray-600 mb-2">⑤ 内容</div>
+              <div class="flex gap-2 flex-wrap">
+                <button class="pill-btn active">💡 提案</button>
+                <button class="pill-btn">🔄 振返り</button>
+                <button class="pill-btn">👋 フォロー</button>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-gray-600 mb-2">⑥ メモ（任意）<button class="text-xs text-pink-600 ml-2" style="color:var(--pink-600);">🎤 音声入力</button></div>
+              <textarea class="w-full p-3 border border-gray-200 rounded-lg text-sm" rows="3" placeholder="必要な内容だけ書く（テンプレ自動補完あり）"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+              <button class="pill-btn">キャンセル</button>
+              <button class="pill-btn" style="background:var(--pink-500); color:#fff; border-color:var(--pink-500);">記録する</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========== KANBAN =========== -->
+      <section id="view-kanban" class="view p-6">
+        <div class="flex gap-2 mb-4 items-center">
+          <button class="pill-btn active">月（5月）</button>
+          <button class="pill-btn">Q2</button>
+          <button class="pill-btn">年</button>
+          <div class="flex-1"></div>
+          <select class="pill-btn">
+            <option>担当：すべて</option>
+            <option>香川 昇</option>
+          </select>
+          <span class="text-xs text-gray-500">ドラッグで段階移動</span>
+        </div>
+
+        <div class="grid grid-cols-4 gap-4">
+          <div class="kanban-col">
+            <div class="flex justify-between items-center mb-3 px-1">
+              <div class="text-sm font-bold">Cヨミ <span class="text-xs text-gray-400 ml-1">12件 / ¥4.2M</span></div>
+              <button class="text-pink-600 text-sm" style="color:var(--pink-600);">+</button>
+            </div>
+            <div class="deal-card"><div class="text-xs font-semibold">株式会社尾張屋</div><div class="text-sm font-bold mt-1">¥120K</div><div class="text-xs text-gray-500 mt-1">担当 渡辺</div></div>
+            <div class="deal-card"><div class="text-xs font-semibold">株式会社盛運</div><div class="text-sm font-bold mt-1">¥200K</div><div class="text-xs text-gray-500 mt-1">担当 木村</div></div>
+            <div class="deal-card"><div class="text-xs font-semibold">マリヤ運輸有限会社</div><div class="text-sm font-bold mt-1">¥80K</div><div class="text-xs text-gray-500 mt-1">担当 香川</div></div>
+            <div class="deal-card"><div class="text-xs font-semibold">K's Trust株式会社</div><div class="text-sm font-bold mt-1">¥150K</div><div class="text-xs text-gray-500 mt-1">担当 伊藤</div></div>
+          </div>
+          <div class="kanban-col">
+            <div class="flex justify-between items-center mb-3 px-1">
+              <div class="text-sm font-bold">Bヨミ <span class="text-xs text-gray-400 ml-1">7件 / ¥2.1M</span></div>
+              <button class="text-pink-600 text-sm" style="color:var(--pink-600);">+</button>
+            </div>
+            <div class="deal-card"><div class="flex justify-between items-center"><div class="text-xs font-semibold">中条商事株式会社</div><span class="badge badge-yellow">結論待ち</span></div><div class="text-sm font-bold mt-1">¥520K</div><div class="text-xs text-gray-500 mt-1">担当 伊藤 / 完了予定 5/31</div></div>
+            <div class="deal-card"><div class="flex justify-between items-center"><div class="text-xs font-semibold">有限会社ナカムラ</div><span class="badge badge-yellow">結論待ち</span></div><div class="text-sm font-bold mt-1">¥240K</div><div class="text-xs text-gray-500 mt-1">担当 香川</div></div>
+            <div class="deal-card"><div class="flex justify-between items-center"><div class="text-xs font-semibold">丸進運輸株式会社</div><span class="badge badge-yellow">結論待ち</span></div><div class="text-sm font-bold mt-1">¥350K</div><div class="text-xs text-gray-500 mt-1">担当 木村</div></div>
+          </div>
+          <div class="kanban-col">
+            <div class="flex justify-between items-center mb-3 px-1">
+              <div class="text-sm font-bold">Aヨミ <span class="text-xs text-gray-400 ml-1">5件 / ¥3.18M</span></div>
+              <button class="text-pink-600 text-sm" style="color:var(--pink-600);">+</button>
+            </div>
+            <div class="deal-card" style="border-color:var(--pink-200);"><div class="flex justify-between items-center"><div class="text-xs font-semibold">株式会社トランスポートジャコ</div><span class="badge badge-pink">申込書提出</span></div><div class="text-sm font-bold mt-1">¥800K</div><div class="text-xs text-gray-500 mt-1">担当 渡辺 / 5/01</div></div>
+            <div class="deal-card" style="border-color:var(--pink-200);"><div class="flex justify-between items-center"><div class="text-xs font-semibold">有限会社ナカムラ</div><span class="badge badge-pink">申込書提出</span></div><div class="text-sm font-bold mt-1">¥180K</div><div class="text-xs text-gray-500 mt-1">担当 香川</div></div>
+            <div class="deal-card" style="border-color:var(--pink-200);"><div class="flex justify-between items-center"><div class="text-xs font-semibold">株式会社ユアルート</div><span class="badge badge-pink">申込書提出</span></div><div class="text-sm font-bold mt-1">¥420K</div><div class="text-xs text-gray-500 mt-1">担当 片岡</div></div>
+          </div>
+          <div class="kanban-col" style="background: var(--pink-50);">
+            <div class="flex justify-between items-center mb-3 px-1">
+              <div class="text-sm font-bold" style="color:var(--pink-700);">成約 <span class="text-xs ml-1">9件 / ¥4.86M</span></div>
+            </div>
+            <div class="deal-card"><div class="text-xs font-semibold">有限会社ナカムラ</div><div class="text-sm font-bold mt-1">¥360K</div><div class="text-xs text-gray-500 mt-1">Indeed 継続2カ月</div></div>
+            <div class="deal-card"><div class="text-xs font-semibold">株式会社ユアルート</div><div class="text-sm font-bold mt-1">¥600K</div><div class="text-xs text-gray-500 mt-1">indeed/求人BOX</div></div>
+            <div class="deal-card"><div class="text-xs font-semibold">株式会社盛運</div><div class="text-sm font-bold mt-1">¥420K</div><div class="text-xs text-gray-500 mt-1">Indeed 1カ月</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========== SALES PERF =========== -->
+      <section id="view-sales-perf" class="view p-6 space-y-4">
+        <div class="flex gap-2 items-center">
+          <button class="pill-btn active">営業</button>
+          <button class="pill-btn">CS</button>
+          <div class="flex-1"></div>
+          <select class="pill-btn"><option>2026年5月</option></select>
+        </div>
+
+        <div class="grid grid-cols-5 gap-4">
+          <div class="card p-4 col-span-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center font-bold text-lg" style="background:var(--pink-100);color:var(--pink-700);">香</div>
+            <div class="text-base font-bold mt-2">香川 昇</div>
+            <div class="text-xs text-gray-500">営業 / 関東支社</div>
+            <div class="mt-4 grid grid-cols-2 gap-3 text-center w-full">
+              <div><div class="text-xs text-gray-500">売上</div><div class="text-sm font-bold">¥2.4M</div></div>
+              <div><div class="text-xs text-gray-500">接点</div><div class="text-sm font-bold">98</div></div>
+              <div><div class="text-xs text-gray-500">成約</div><div class="text-sm font-bold">7</div></div>
+              <div><div class="text-xs text-gray-500">質スコア</div><div class="text-sm font-bold" style="color:var(--pink-700);">82</div></div>
+            </div>
+          </div>
+
+          <div class="card p-4 col-span-2">
+            <div class="font-semibold text-sm mb-3">活動の質（手段×結果）</div>
+            <canvas id="chart-quality" height="160"></canvas>
+          </div>
+
+          <div class="card p-4 col-span-2">
+            <div class="font-semibold text-sm mb-3">活動ファネル</div>
+            <div class="grid grid-cols-5 gap-2 items-end text-center text-xs">
+              <div>
+                <div class="rounded-t-md" style="height:140px; background:var(--pink-500);"></div>
+                <div class="bg-pink-50 py-2 rounded-b-md" style="background:var(--pink-50);"><div class="font-bold">98</div>接点</div>
+              </div>
+              <div>
+                <div class="rounded-t-md" style="height:110px; background:var(--pink-500);"></div>
+                <div class="bg-pink-50 py-2 rounded-b-md" style="background:var(--pink-50);"><div class="font-bold">62</div>つながった</div>
+              </div>
+              <div>
+                <div class="rounded-t-md" style="height:80px; background:var(--pink-500);"></div>
+                <div class="bg-pink-50 py-2 rounded-b-md" style="background:var(--pink-50);"><div class="font-bold">38</div>前向き</div>
+              </div>
+              <div>
+                <div class="rounded-t-md" style="height:55px; background:var(--pink-500);"></div>
+                <div class="bg-pink-50 py-2 rounded-b-md" style="background:var(--pink-50);"><div class="font-bold">19</div>商談化</div>
+              </div>
+              <div>
+                <div class="rounded-t-md" style="height:30px; background:var(--pink-500);"></div>
+                <div class="bg-pink-50 py-2 rounded-b-md" style="background:var(--pink-50);"><div class="font-bold">7</div>成約</div>
+              </div>
+            </div>
+            <div class="text-xs text-gray-500 mt-3 text-center">転換率：63% → 61% → 50% → 37%</div>
+          </div>
+        </div>
+
+        <div class="card p-4">
+          <div class="font-semibold text-sm mb-3">日別の活動量</div>
+          <canvas id="chart-daily" height="80"></canvas>
+        </div>
+      </section>
+
+      <!-- =========== TRENDS =========== -->
+      <section id="view-trends" class="view p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">前向き顧客の特徴（接点数 vs 成約率）</div>
+            <canvas id="chart-scatter" height="160"></canvas>
+            <div class="text-xs text-gray-500 mt-2">月5回以上の接点で成約率が約2.3倍に上昇</div>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">商品別 成約までの平均日数</div>
+            <canvas id="chart-cycle" height="160"></canvas>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">拠点別売上ヒートマップ（Q）</div>
+            <div class="grid grid-cols-4 gap-2 text-xs text-center mt-2">
+              <div class="p-3 rounded text-white" style="background:var(--pink-700);">関東<br><span class="text-base font-bold">¥4.2M</span></div>
+              <div class="p-3 rounded text-white" style="background:var(--pink-500);">関西<br><span class="text-base font-bold">¥2.8M</span></div>
+              <div class="p-3 rounded" style="background:var(--pink-100);color:var(--pink-700);">中部<br><span class="text-base font-bold">¥1.4M</span></div>
+              <div class="p-3 rounded" style="background:var(--pink-50);color:var(--pink-700);">九州<br><span class="text-base font-bold">¥0.6M</span></div>
+            </div>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3">休眠化リスク</div>
+            <table class="compact w-full">
+              <thead><tr><th>顧客</th><th>最終接点</th><th>リスク</th></tr></thead>
+              <tbody>
+                <tr><td>株式会社H.A.S</td><td>722日前</td><td><span class="badge badge-red">高</span></td></tr>
+                <tr><td>株式会社丸松</td><td>63日前</td><td><span class="badge badge-yellow">中</span></td></tr>
+                <tr><td>株式会社光星運輸</td><td>32日前</td><td><span class="badge badge-yellow">中</span></td></tr>
+                <tr><td>中条商事株式会社</td><td>45日前</td><td><span class="badge badge-yellow">中</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========== IMPORT =========== -->
+      <section id="view-import" class="view p-6">
+        <div class="card p-6 max-w-3xl">
+          <h2 class="text-lg font-bold mb-1">CSV取込</h2>
+          <p class="text-xs text-gray-500 mb-5">Salesforceから書き出したCSVをアップロード。マッピングは自動推定します。</p>
+          <div class="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center hover:border-pink-300">
+            <div class="text-4xl">📥</div>
+            <div class="mt-2 text-sm">ファイルをドラッグ＆ドロップ または <button class="text-pink-600 font-semibold" style="color:var(--pink-600);">クリックして選択</button></div>
+            <div class="text-xs text-gray-500 mt-2">対応：Account / Opportunity / Task / Event / Contact / IndeedCampaign</div>
+          </div>
+          <div class="mt-5">
+            <div class="text-xs font-semibold mb-2">過去の取込</div>
+            <table class="compact w-full">
+              <thead><tr><th>ファイル</th><th>種別</th><th>件数</th><th>日時</th><th>状態</th></tr></thead>
+              <tbody>
+                <tr><td>Account_20260512.csv</td><td>顧客</td><td>312</td><td>5/12 09:01</td><td><span class="badge badge-green">完了</span></td></tr>
+                <tr><td>Opportunity_20260512.csv</td><td>商談</td><td>184</td><td>5/12 09:02</td><td><span class="badge badge-green">完了</span></td></tr>
+                <tr><td>Task_20260505.csv</td><td>接点</td><td>1,402</td><td>5/05 18:30</td><td><span class="badge badge-green">完了</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========== SETTINGS =========== -->
+      <section id="view-settings" class="view p-6">
+        <div class="card p-6 max-w-3xl">
+          <h2 class="text-lg font-bold mb-3">設定</h2>
+          <div class="space-y-4 text-sm">
+            <div>
+              <div class="font-semibold mb-1">Indeed API</div>
+              <div class="text-xs text-gray-500 mb-2">毎日5時に応募数・利用金額を同期</div>
+              <button class="pill-btn">接続を設定</button>
+            </div>
+            <div>
+              <div class="font-semibold mb-1">権限</div>
+              <div class="text-xs text-gray-500">管理者 / メンバー / 閲覧 の3層</div>
+            </div>
+            <div>
+              <div class="font-semibold mb-1">Slack通知</div>
+              <div class="text-xs text-gray-500">要対応リスト・日次サマリを #ligo-sales に投稿</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+// ===== View switching =====
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    const target = el.dataset.view;
+    if (!target) return;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const view = document.getElementById('view-' + target);
+    if (view) view.classList.add('active');
+    const titles = {
+      'dashboard': 'ダッシュボード（全社）',
+      'my-dashboard': 'マイダッシュボード — 木村 亮介',
+      'custom-dashboard': 'カスタムダッシュボード（管理者）',
+      'customers': '顧客一覧',
+      'customer-detail': '顧客詳細 — 有限会社ナカムラ',
+      'touchpoint': '接点を記録',
+      'kanban': 'ヨミ管理',
+      'sales-perf': '営業/CS分析',
+      'trends': '傾向分析',
+      'import': 'CSV取込',
+      'settings': '設定',
+    };
+    document.getElementById('page-title').textContent = titles[target] || '';
+  });
+});
+
+// ===== Customer cards =====
+const customers = [
+  {name:'有限会社ナカムラ', owner:'香川 昇', rev:'¥5.53M', last:'4日前', signal:'green', status:'継続中', forecast:'¥360K', industry:'運送'},
+  {name:'株式会社トランスポートジャコ', owner:'渡辺', rev:'¥1.20M', last:'2日前', signal:'green', status:'Aヨミ', forecast:'¥800K', industry:'運送'},
+  {name:'株式会社H.A.S', owner:'木村 亮介', rev:'—', last:'722日前', signal:'red', status:'IS架電依頼', forecast:'—', industry:'運送'},
+  {name:'株式会社ユアルート', owner:'片岡 仙充', rev:'¥2.10M', last:'6日前', signal:'green', status:'継続中', forecast:'¥420K', industry:'物流'},
+  {name:'中条商事株式会社', owner:'伊藤', rev:'¥0.85M', last:'45日前', signal:'yellow', status:'Bヨミ', forecast:'¥520K', industry:'物流'},
+  {name:'株式会社盛運', owner:'木村 亮介', rev:'¥1.46M', last:'8日前', signal:'green', status:'継続中', forecast:'¥420K', industry:'運送'},
+  {name:'株式会社光星運輸', owner:'木村 亮介', rev:'—', last:'32日前', signal:'yellow', status:'IS対応中', forecast:'—', industry:'運送'},
+  {name:'株式会社丸松', owner:'香川 昇', rev:'¥0.96M', last:'63日前', signal:'yellow', status:'失注後フォロー', forecast:'—', industry:'運送'},
+  {name:'丸進運輸株式会社', owner:'木村 亮介', rev:'¥2.84M', last:'1日前', signal:'green', status:'継続中', forecast:'¥350K', industry:'運送'},
+];
+const signalColor = {green:'#10B981', yellow:'#F59E0B', red:'#EF4444'};
+const grid = document.getElementById('customer-grid');
+grid.innerHTML = customers.map(c => `
+  <div class="card p-4 cursor-pointer hover:border-pink-200 transition" onclick="document.querySelector('[data-view=customer-detail]').click()">
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="flex items-center gap-2"><span class="signal-dot" style="background:${signalColor[c.signal]};"></span><span class="text-[11px] text-gray-500">${c.status}</span></div>
+        <div class="font-semibold text-sm mt-1">${c.name}</div>
+        <div class="text-xs text-gray-500 mt-0.5">${c.industry}</div>
+      </div>
+      <div class="w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center" style="background:var(--pink-100);color:var(--pink-700);">${c.owner.charAt(0)}</div>
+    </div>
+    <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 text-xs">
+      <div><div class="text-gray-400">累計売上</div><div class="font-semibold mt-0.5">${c.rev}</div></div>
+      <div><div class="text-gray-400">今月ヨミ</div><div class="font-semibold mt-0.5">${c.forecast}</div></div>
+      <div><div class="text-gray-400">最終接点</div><div class="font-semibold mt-0.5">${c.last}</div></div>
+    </div>
+  </div>
+`).join('');
+
+// ===== Charts =====
+const pink = '#EC4899';
+const pinkLight = '#FBCFE8';
+const colors = ['#EC4899','#F472B6','#FBCFE8','#A78BFA','#60A5FA','#34D399','#FBBF24'];
+
+// Revenue chart
+new Chart(document.getElementById('chart-revenue'), {
+  type:'bar',
+  data:{
+    labels:['12月','1月','2月','3月','4月','5月','6月予測'],
+    datasets:[
+      {label:'売上実績', data:[6.1, 6.8, 7.4, 7.0, 7.5, 8.42, 0], backgroundColor:pink, borderRadius:6},
+      {label:'ヨミ（A+B+C）', data:[0,0,0,0,0,3.18, 5.9], backgroundColor:pinkLight, borderRadius:6}
+    ]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:11}, boxWidth:10}}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>'¥'+v+'M'}}}}
+});
+
+// Funnel
+new Chart(document.getElementById('chart-funnel'), {
+  type:'bar',
+  data:{
+    labels:['Cヨミ','Bヨミ','Aヨミ','成約'],
+    datasets:[{data:[4.2, 2.1, 3.18, 4.86], backgroundColor:['#FBCFE8','#F9A8D4','#F472B6','#EC4899'], borderRadius:6}]
+  },
+  options:{indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>'¥'+v+'M'}}}}
+});
+
+// Channel donut
+new Chart(document.getElementById('chart-channel'), {
+  type:'doughnut',
+  data:{
+    labels:['電話','訪問','メール','Slack','Zoom','その他'],
+    datasets:[{data:[182,68,94,38,22,8], backgroundColor:colors, borderWidth:0}]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:10}, boxWidth:10}}}, cutout:'60%'}
+});
+
+// Product composition
+new Chart(document.getElementById('chart-product'), {
+  type:'doughnut',
+  data:{
+    labels:['Indeed広告','求人BOX','ISパス','doda','採用代行','ハコプロ'],
+    datasets:[{data:[55,15,12,8,6,4], backgroundColor:colors, borderWidth:0}]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:10}, boxWidth:10}}}, cutout:'60%'}
+});
+
+// Customer revenue
+new Chart(document.getElementById('chart-customer-rev'), {
+  type:'bar',
+  data:{
+    labels:['11月','12月','1月','2月','3月','4月','5月'],
+    datasets:[
+      {label:'請求額', data:[420,420,420,360,360,360,360], backgroundColor:pink, borderRadius:6},
+      {label:'費消（広告費）', data:[680,720,710,690,670,650,640], backgroundColor:'#FBCFE8', borderRadius:6}
+    ]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:11}, boxWidth:10}}}, scales:{y:{ticks:{callback:v=>'¥'+v+'K'}}}}
+});
+
+// Quality (stacked bar)
+new Chart(document.getElementById('chart-quality'), {
+  type:'bar',
+  data:{
+    labels:['電話','訪問','メール','Slack','Zoom'],
+    datasets:[
+      {label:'つながった/反応あり', data:[42,12,28,11,4], backgroundColor:'#34D399'},
+      {label:'前向き', data:[18,28,15,8,12], backgroundColor:'#EC4899'},
+      {label:'不在/未読', data:[28,6,32,15,2], backgroundColor:'#F59E0B'},
+      {label:'NG', data:[10,2,8,4,1], backgroundColor:'#9CA3AF'}
+    ]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:11}, boxWidth:10}}}, scales:{x:{stacked:true}, y:{stacked:true}}}
+});
+
+// Daily activity
+new Chart(document.getElementById('chart-daily'), {
+  type:'line',
+  data:{
+    labels:Array.from({length:30}, (_,i)=>(i+1)+'日'),
+    datasets:[{label:'接点数', data:[8,12,6,14,18,4,2,15,22,18,12,9,16,20,5,3,14,17,21,16,10,7,11,18,24,19,15,8,4,12], borderColor:pink, backgroundColor:'rgba(236,72,153,0.1)', fill:true, tension:0.3, pointRadius:2}]
+  },
+  options:{plugins:{legend:{display:false}}}
+});
+
+// Scatter
+new Chart(document.getElementById('chart-scatter'), {
+  type:'scatter',
+  data:{
+    datasets:[{
+      label:'顧客',
+      data:[{x:1,y:5},{x:2,y:8},{x:3,y:12},{x:4,y:18},{x:5,y:25},{x:6,y:32},{x:7,y:38},{x:8,y:42},{x:3,y:6},{x:5,y:22},{x:2,y:4},{x:7,y:45}],
+      backgroundColor:pink
+    }]
+  },
+  options:{plugins:{legend:{display:false}}, scales:{x:{title:{display:true,text:'月の接点数'}}, y:{title:{display:true,text:'成約率(%)'}}}}
+});
+
+// 採用ステータス推移
+new Chart(document.getElementById('chart-recruit-trend'), {
+  type:'line',
+  data:{
+    labels:['90日前','75日前','60日前','45日前','30日前','15日前','現在'],
+    datasets:[
+      {label:'A 充足', data:[10,12,13,15,16,17,18], borderColor:'#10B981', backgroundColor:'rgba(16,185,129,0.1)', fill:true, tension:0.3, pointRadius:2},
+      {label:'B 未充足', data:[35,33,32,30,30,29,29], borderColor:'#EC4899', backgroundColor:'rgba(236,72,153,0.1)', fill:true, tension:0.3, pointRadius:2},
+      {label:'C 面接', data:[18,20,21,22,22,21,21], borderColor:'#F59E0B', backgroundColor:'rgba(245,158,11,0.1)', fill:true, tension:0.3, pointRadius:2},
+      {label:'D 応募', data:[14,13,12,12,11,12,12], borderColor:'#FB923C', backgroundColor:'rgba(251,146,60,0.1)', fill:true, tension:0.3, pointRadius:2},
+      {label:'E 無', data:[10,9,9,8,8,8,7], borderColor:'#94A3B8', backgroundColor:'rgba(148,163,184,0.1)', fill:true, tension:0.3, pointRadius:2},
+    ]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:10}, boxWidth:10}}}, scales:{y:{beginAtZero:true, ticks:{font:{size:10}}}, x:{ticks:{font:{size:10}}}}}
+});
+
+// Cycle
+new Chart(document.getElementById('chart-cycle'), {
+  type:'bar',
+  data:{
+    labels:['Indeed広告','求人BOX','ISパス','doda','採用代行','ハコプロ'],
+    datasets:[{data:[18,24,12,32,45,28], backgroundColor:colors, borderRadius:6}]
+  },
+  options:{indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{title:{display:true,text:'平均日数'}}}}
+});
+
+// ===== MY DASHBOARD CHARTS =====
+new Chart(document.getElementById('chart-my-revenue'), {
+  type:'bar',
+  data:{
+    labels:['12月','1月','2月','3月','4月','5月'],
+    datasets:[
+      {label:'自分の売上', data:[1.2,1.4,1.6,1.5,1.7,1.9], backgroundColor:pink, borderRadius:6},
+      {label:'チーム平均', data:[1.5,1.5,1.6,1.5,1.6,1.7], backgroundColor:'#FBCFE8', borderRadius:6}
+    ]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:11}, boxWidth:10}}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>'¥'+v+'M'}}}}
+});
+
+new Chart(document.getElementById('chart-my-funnel'), {
+  type:'bar',
+  data:{
+    labels:['Cヨミ','Bヨミ','Aヨミ','成約見込'],
+    datasets:[{data:[1.2, 0.6, 0.82, 1.9], backgroundColor:['#FBCFE8','#F9A8D4','#F472B6','#EC4899'], borderRadius:6}]
+  },
+  options:{indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>'¥'+v+'M'}}}}
+});
+
+new Chart(document.getElementById('chart-my-channel'), {
+  type:'doughnut',
+  data:{
+    labels:['電話','訪問','メール','Slack','Zoom'],
+    datasets:[{data:[42,18,15,8,4], backgroundColor:colors, borderWidth:0}]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:10}, boxWidth:10}}}, cutout:'60%'}
+});
+
+new Chart(document.getElementById('chart-my-quality'), {
+  type:'doughnut',
+  data:{
+    datasets:[{data:[82, 18], backgroundColor:[pink, '#F3F4F6'], borderWidth:0}]
+  },
+  options:{cutout:'78%', plugins:{legend:{display:false}, tooltip:{enabled:false}}, animation:{animateScale:false}}
+});
+
+// ===== CUSTOM DASHBOARD CHARTS =====
+new Chart(document.getElementById('chart-c-revenue'), {
+  type:'bar',
+  data:{
+    labels:['12月','1月','2月','3月','4月','5月'],
+    datasets:[
+      {label:'売上', data:[6.1, 6.8, 7.4, 7.0, 7.5, 8.42], backgroundColor:pink, borderRadius:6},
+      {label:'ヨミ', data:[0,0,0,0,0,3.18], backgroundColor:pinkLight, borderRadius:6}
+    ]
+  },
+  options:{plugins:{legend:{position:'bottom', labels:{font:{size:11}, boxWidth:10}}}, scales:{y:{ticks:{callback:v=>'¥'+v+'M'}}}}
+});
+
+new Chart(document.getElementById('chart-c-funnel'), {
+  type:'bar',
+  data:{
+    labels:['C','B','A','成約'],
+    datasets:[{data:[4.2,2.1,3.18,4.86], backgroundColor:['#FBCFE8','#F9A8D4','#F472B6','#EC4899'], borderRadius:6}]
+  },
+  options:{indexAxis:'y', plugins:{legend:{display:false}}}
+});
+
+new Chart(document.getElementById('chart-c-channel'), {
+  type:'doughnut',
+  data:{
+    labels:['電話','訪問','メール','Slack','Zoom','その他'],
+    datasets:[{data:[182,68,94,38,22,8], backgroundColor:colors, borderWidth:0}]
+  },
+  options:{plugins:{legend:{position:'right', labels:{font:{size:10}, boxWidth:10}}}, cutout:'55%'}
+});
+
+// ===== DRAG AND DROP for custom dashboard =====
+const customGrid = document.getElementById('custom-grid');
+if (customGrid) {
+  Sortable.create(customGrid, {
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    handle: '.widget',
+    filter: '.widget-handle, .widget-handle *',
+    preventOnFilter: false
+  });
+}
+
+// Toggle edit mode
+let editOn = true;
+document.getElementById('btn-toggle-edit').addEventListener('click', (e) => {
+  editOn = !editOn;
+  document.querySelectorAll('#custom-grid .widget').forEach(w => {
+    w.classList.toggle('edit-mode', editOn);
+  });
+  e.target.textContent = editOn ? '✏️ 編集モード ON' : '👁 プレビュー';
+  e.target.style.background = editOn ? 'var(--pink-500)' : '#fff';
+  e.target.style.color = editOn ? '#fff' : '';
+  e.target.style.borderColor = editOn ? 'var(--pink-500)' : 'var(--line)';
+});
+
+// Open palette
+document.getElementById('btn-add-widget').addEventListener('click', () => {
+  document.getElementById('palette-modal').classList.add('open');
+});
+
+// Widget remove (delegated)
+document.getElementById('custom-grid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.widget-handle button[title="削除"]');
+  if (btn) {
+    if (confirm('このウィジェットを削除しますか？')) {
+      btn.closest('.widget').remove();
+    }
+  }
+});
+
+// Role tabs
+document.querySelectorAll('.role-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.role-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+  });
+});
+
+// Palette items - drag to add (mock: just close modal)
+document.querySelectorAll('.palette-item').forEach(item => {
+  item.addEventListener('click', () => {
+    alert('「' + item.querySelector('.text-xs.font-medium').textContent + '」を追加しました（モック）');
+    document.getElementById('palette-modal').classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Salesforce CSV (個人情報含む可能性、公開しない)
+sf-export/
+*.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Build
+node_modules/
+*.zip
